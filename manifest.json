@@ -1,0 +1,27 @@
+  {
+      "name": "wiki-slurpee",
+      "homepage_url": "https://github.com/derenrich/wiki-slurpee",
+      "version": "1.0",
+      "offline_enabled": false,
+      "description": "Help move data from Google's infoboxes to Wkidata.",
+      "manifest_version": 2,
+      "background": {
+          "scripts": ["background.js"],
+          "persistent": false
+      },
+      "icons": {
+          "16": "images/logo_square_16.png",
+          "32": "images/logo_square_32.png",
+          "48": "images/logo_square_48.png",
+          "128": "images/logo_square_128.png"
+      },
+      "page_action": {
+          "default_title": "Slurp to Wikidata"
+      }, 
+      "permissions": ["declarativeContent",
+                      "storage",
+                      "activeTab",
+                      "https://www.wikidata.org/*"
+                     ]
+  }
+
