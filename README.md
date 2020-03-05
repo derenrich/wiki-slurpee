@@ -25,7 +25,7 @@ To use this extension you should be logged in to wikidata.
 
     ![Annotated infobox result](infobox.png)
     
-2. Click the "slurp" button. This will attempt to upload Google's data to wikidata. If there is a data conflict then property is not updated.
+2. Click the "slurp" button. This will attempt to upload Google's data to wikidata. If there is a data conflict then the conflicted property is not updated.
 3. If the edits were successful then it shows you a link to the wikidata item and its history.
 
     ![Infobox result after edits](infobox_post.png)
