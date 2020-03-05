@@ -21,7 +21,7 @@ Currently this extension can upload the following pieces of data to wikidata:
 ## Usage
 To use this extension you should be logged in to wikidata.
 
-1. Find a google search result page with a knowledge box that links to a Wikipedia article.
+1. Find a google search result page with a knowledge panel that links to a Wikipedia article.
 
     ![Annotated infobox result](infobox.png)
     
@@ -29,3 +29,13 @@ To use this extension you should be logged in to wikidata.
 3. If the edits were successful then it shows you a link to the wikidata item and its history.
 
     ![Infobox result after edits](infobox_post.png)
+
+
+## Errors
+
+The extension can fail silently for a number of reasons:
+
+* The wikipedia article doesn't have a wikidata entry
+* The requests to Wikipedia failed (eg. due to throttling)
+* You already tried to upload this data (this condition is caught and the data is not re-uploaded)
+* If the Wikipedia has been deleted since Google crawled the page it will fail to find the Wikidata entry.
