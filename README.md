@@ -1,5 +1,5 @@
 # wiki-slurpee
-Browser extension for slurping Google knowledge graph data into Wikidata
+Browser extension for slurping Google knowledge graph data into Wikidata. Available in the [chrome web store](https://chrome.google.com/webstore/detail/wiki-slurpee/fkgnbcdfnibcnbgloagfdgdfncccilnc).
 
 **Warning: You should check all edits this extension produces. Google's data isn't perfect and nor is this extension. Major changes to Google's search results page will break this extension.**
 
