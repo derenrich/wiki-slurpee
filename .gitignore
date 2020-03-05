@@ -1,5 +1,7 @@
 # Editors
 *~
+.DS_Store
+*.bak
 
 # Logs
 logs

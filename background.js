@@ -52,10 +52,8 @@ function getWikidataMarkup(entity) {
     return fetch(path, {cache: "no-store"}).then(function(res){return res.json()});
 }
 
-// enable the plugin button
 
 chrome.runtime.onInstalled.addListener(function() {
-    console.log("plugin enabled");
     chrome.declarativeContent.onPageChanged.removeRules(undefined, function() {
       chrome.declarativeContent.onPageChanged.addRules([{
         conditions: [new chrome.declarativeContent.PageStateMatcher({
@@ -66,11 +64,11 @@ chrome.runtime.onInstalled.addListener(function() {
         actions: [new chrome.declarativeContent.ShowPageAction()]
       }]);
     });
+});
 
-    chrome.pageAction.onClicked.addListener(function(tab) {
-        chrome.tabs.executeScript({
-            file: 'content.js'
-        });
+chrome.pageAction.onClicked.addListener(function(tab) {
+    chrome.tabs.executeScript({
+        file: 'content.js'
     });
 });
 
