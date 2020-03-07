@@ -1,7 +1,7 @@
   {
       "name": "wiki-slurpee",
       "homepage_url": "https://github.com/derenrich/wiki-slurpee",
-      "version": "1.1",
+      "version": "1.2",
       "offline_enabled": false,
       "description": "Help move data from Google's infoboxes to Wkidata.",
       "manifest_version": 2,
