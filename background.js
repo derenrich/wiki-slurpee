@@ -31,7 +31,9 @@ function getWikidataEntity(url) {
 
     let site = getSiteFromUrl(url)
     let split_url = url.pathname.split("/")
-    let wiki_article_name = split_url[split_url.length - 1];
+    split_url.shift(); // shift out the leading "/"
+    split_url.shift(); // shift out the "wiki/"
+    let wiki_article_name = split_url.join("/");
     let args = "site=" + site + "&page=" + wiki_article_name;
     return fetch(path + args).catch(function(err) {
         console.error(err);
@@ -85,9 +87,9 @@ let PINTEREST_CLAIM = "P3836";
 let GOOGLE_KNOWLEDGE_CLAIM = "P2671";
 
 let IMDB_CLAIM = "P345";
+let RETRIEVED_CLAIM = "P813";
 
-
-function makeClaim(entity, property, value, rawTags, rawToken) {
+function makeClaim(entity, property, value, rawTags, rawToken, graphId) {
     let base_url = "https://www.wikidata.org/w/api.php?action=wbcreateclaim&format=json&snaktype=value&";
     let token = encodeURIComponent(rawToken);
     let tags = rawTags.map(encodeURIComponent).join("|");
@@ -104,16 +106,39 @@ function makeClaim(entity, property, value, rawTags, rawToken) {
             "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
             "accept":"application/json, text/javascript, */*; q=0.01"
         }
-    }).then(function(data){return data.json();}).then(function(data){return addRef(data, rawToken);});
+    }).then(function(data){return data.json();}).then(function(data){return addRef(data, rawToken, graphId);});
 }
 
 
-function addRef(data, rawToken) {
+function currentTimeValue() {
+    let now = new Date();
+    now.setUTCSeconds(0, 0);
+    now.setUTCHours(0);
+    now.setUTCMinutes(0);
+    // hack to strip fractional seconds due to https://phabricator.wikimedia.org/T247148
+    let today = "+" + now.toISOString().replace(".000","");
+    return {"type":"time","value":{"after":0,"before":0,"calendarmodel":"http://www.wikidata.org/entity/Q1985727","precision":11,"time":today,"timezone":0}};
+}
+
+function addGraphId(snack, graphId) {
+    if (graphId) {
+        if (graphId.startsWith("/m/")) {
+            snack[FREEBASE_CLAIM] = [{"snaktype":"value","property":FREEBASE_CLAIM,"datavalue":{"type":"string","value":graphId}}];
+        } else if (graphId.startsWith("/g/")) {
+            snack[GOOGLE_KNOWLEDGE_CLAIM] = [{"snaktype":"value","property":GOOGLE_KNOWLEDGE_CLAIM,"datavalue":{"type":"string","value":graphId}}];
+        }
+    }
+}
+
+function addRef(data, rawToken, graphId) {
     let base_url = "https://www.wikidata.org/w/api.php?action=wbsetreference&format=json&";
     let token = encodeURIComponent(rawToken);
     let summary = encodeURIComponent("scraped data from google");
-    let snaks =  encodeURIComponent(JSON.stringify({"P248":[{"snaktype":"value","property":"P248","datavalue":{"type":"wikibase-entityid","value":{"id":"Q648625"}}}]}));
+    let refSnack = {"P248":[{"snaktype":"value","property":"P248","datavalue":{"type":"wikibase-entityid","value":{"id":"Q648625"}}}]};
 
+    refSnack[RETRIEVED_CLAIM] = [{"snaktype":"value","property":"P813","datavalue": currentTimeValue()}];
+    addGraphId(refSnack, graphId);
+    let snaks =  encodeURIComponent(JSON.stringify(refSnack));
     let args = `token=${token}&summary=${summary}`;
     let success = data.success;
     if (success == 1) {
@@ -131,14 +156,14 @@ function addRef(data, rawToken) {
     return Promise.resolve(null);
 }
 
-function processSocialMediaUrl(stringUrl, claims, entity, token) {
+function processSocialMediaUrl(stringUrl, claims, entity, token, graphId) {
     let url = new URL(stringUrl);
     let host = url.host;
     let split_path = url.pathname.split("/");
     if (host.endsWith("twitter.com")) {
         if (!(TWITTER_CLAIM in claims)) {
             let handle = split_path[split_path.length - 1];
-            return makeClaim(entity, TWITTER_CLAIM, handle, [], token);
+            return makeClaim(entity, TWITTER_CLAIM, handle, [], token, graphId);
         }
     } else if (host.endsWith("instagram.com")) {
         if (!(INSTA_CLAIM in claims)) {
@@ -146,7 +171,7 @@ function processSocialMediaUrl(stringUrl, claims, entity, token) {
             if (handle == "") {
                 handle = split_path[split_path.length - 2];
             }
-            return makeClaim(entity, INSTA_CLAIM, handle, [], token);                
+            return makeClaim(entity, INSTA_CLAIM, handle, [], token, graphId);
         }
     } else if (host.endsWith("pinterest.com")) {
         if (!(PINTEREST_CLAIM in claims)) {
@@ -154,7 +179,7 @@ function processSocialMediaUrl(stringUrl, claims, entity, token) {
             if (handle == "") {
                 handle = split_path[split_path.length - 2];
             }                                
-            return makeClaim(entity, PINTEREST_CLAIM, handle, [], token);                                
+            return makeClaim(entity, PINTEREST_CLAIM, handle, [], token, graphId);
         }
     } else if (host.endsWith("facebook.com")) {
         if (!(FB_CLAIM in claims)) {
@@ -162,7 +187,7 @@ function processSocialMediaUrl(stringUrl, claims, entity, token) {
             if (handle == "") {
                 handle = split_path[split_path.length - 2];
             }                
-            return makeClaim(entity, FB_CLAIM, handle, [], token);                                
+            return makeClaim(entity, FB_CLAIM, handle, [], token, graphId);
         }
     } else if (host.endsWith("linkedin.com")) {
         if (!(LINKEDIN_CLAIM in claims)) {
@@ -175,7 +200,7 @@ function processSocialMediaUrl(stringUrl, claims, entity, token) {
                 handle = split_path[split_path.length - 2];
             }
             if (handle.startsWith("UC") && handle.length == 24) {
-                return makeClaim(entity, YT_CLAIM, handle, [], token);                                
+                return makeClaim(entity, YT_CLAIM, handle, [], token, graphId);
             }
         }
     } else if (host.endsWith("soundcloud.com")) {
@@ -184,7 +209,7 @@ function processSocialMediaUrl(stringUrl, claims, entity, token) {
             if (handle == "") {
                 handle = split_path[split_path.length - 2];
             }
-            return makeClaim(entity, SOUND_CLOUD_CLAIM, handle, [], token);
+            return makeClaim(entity, SOUND_CLOUD_CLAIM, handle, [], token, graphId);
         }
     } else if (host.endsWith("myspace.com")) {
         if (!(MY_SPACE_CLAIM in claims)) {
@@ -192,7 +217,7 @@ function processSocialMediaUrl(stringUrl, claims, entity, token) {
             if (handle == "") {
                 handle = split_path[split_path.length - 2];
             }
-            return makeClaim(entity, MY_SPACE_CLAIM, handle, [], token);
+            return makeClaim(entity, MY_SPACE_CLAIM, handle, [], token, graphId);
         }
     } else if (host.endsWith("imdb.com")) {
         if (!(IMDB_CLAIM in claims)) {
@@ -200,7 +225,7 @@ function processSocialMediaUrl(stringUrl, claims, entity, token) {
             if (handle == "") {
                 handle = split_path[split_path.length - 2];
             }
-            return makeClaim(entity, IMDB_CLAIM, handle, [], token);                
+            return makeClaim(entity, IMDB_CLAIM, handle, [], token, graphId);
         }
     }
     return Promise.resolve(null);
@@ -209,17 +234,17 @@ function processSocialMediaUrl(stringUrl, claims, entity, token) {
 function processKB(id, claims, entityId, token) {
     if (id.startsWith("/m/")) {
         if (!(FREEBASE_CLAIM in claims)) {
-            return makeClaim(entityId, FREEBASE_CLAIM, id, [], token);
+            return makeClaim(entityId, FREEBASE_CLAIM, id, [], token, null);
         }
     } else if (id.startsWith("/g/")) {
         if (!(GOOGLE_KNOWLEDGE_CLAIM in claims)) {
-            return makeClaim(entityId, GOOGLE_KNOWLEDGE_CLAIM, id, [], token);
+            return makeClaim(entityId, GOOGLE_KNOWLEDGE_CLAIM, id, [], token, null);
         }
     }
     return Promise.resolve(null);
 }
 
-function processWebsite(website, claims, entityId, token) {
+function processWebsite(website, claims, entityId, token, graphId) {
     if (website != null) {
         let websiteUrl = new URL(website);
         let host = websiteUrl.host;
@@ -230,7 +255,7 @@ function processWebsite(website, claims, entityId, token) {
             host.endsWith("instagram.com")) {
         } else {
             if (!(WEBSITE_CLAIM in claims)) {
-                return makeClaim(entityId, WEBSITE_CLAIM, website, [], token);
+                return makeClaim(entityId, WEBSITE_CLAIM, website, [], token, graphId);
             }
         }
     }
@@ -260,10 +285,10 @@ chrome.runtime.onMessage.addListener(
                     let claims = markup.entities[entityId].claims;
                     var promiseChain = Promise.resolve(null);
                     socialMediaLinks.forEach(function(url){
-                        promiseChain = promiseChain.then(function(){return processSocialMediaUrl(url, claims, entityId, token);});
+                        promiseChain = promiseChain.then(function(){return processSocialMediaUrl(url, claims, entityId, token, graphId);});
                     });
                     promiseChain = promiseChain.then(function(){return processKB(graphId, claims, entityId, token);});
-                    promiseChain = promiseChain.then(function(){return processWebsite(website, claims, entityId, token);});
+                    promiseChain = promiseChain.then(function(){return processWebsite(website, claims, entityId, token, graphId);});
                     promiseChain = promiseChain.then(function(){
                         chrome.storage.local.set({[entityId]: 1});
                     });
