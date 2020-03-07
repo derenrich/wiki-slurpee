@@ -49,6 +49,19 @@ function getFilmData(panel) {
     return [];
 }
 
+function getArtistData(panel){
+    let availableOn = panel.querySelector("[data-attrid='action:listen_artist']");
+    if (availableOn) {
+        let artistLinks = Array.from(availableOn.getElementsByTagName("a"))
+            .map(a => a.href)
+            .filter(href => href.length > 0)
+            .filter(href => !href.includes("youtube.com"));
+        return artistLinks;
+    } else {
+        return  [];
+    }
+}
+
 function getWikiLinkDirectly() {
     console.log("scraping panel");
     let panel = getKnowledgePanel();
@@ -80,7 +93,7 @@ function getInfo() {
         }
 
         let filmLinks = getFilmData(panel);
-        
+        let artistLinks = getArtistData(panel);
         
         let officialSiteElement = panel.querySelector("[data-attrid='visit_official_site']");
         var officialSite = null;
@@ -102,7 +115,7 @@ function getInfo() {
         } catch (ex) {
             graphId = "";
         }
-        let relatedUrls = filmLinks.concat(socialMediaUrls);
+        let relatedUrls = filmLinks.concat(socialMediaUrls).concat(artistLinks);
         return {
             graphId,
             relatedUrls,

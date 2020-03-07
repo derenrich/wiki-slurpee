@@ -86,10 +86,18 @@ let FREEBASE_CLAIM = "P646";
 let PINTEREST_CLAIM = "P3836";
 let GOOGLE_KNOWLEDGE_CLAIM = "P2671";
 
+let DEEZER_ARTIST_CLAIM = "P2722";
+let SPOTIFY_ARTIST_CLAIM = "P1902";
+let TUNE_IN_ARTIST_CLAIM = "P7192";
+let PLAY_ARTIST_CLAIM = "P4198";
+
 let IMDB_CLAIM = "P345";
 let RETRIEVED_CLAIM = "P813";
 
 function makeClaim(entity, property, value, rawTags, rawToken, graphId) {
+    if (value.length == 0) { // don't set empty values
+        return Promise.resolve(null);
+    }
     let base_url = "https://www.wikidata.org/w/api.php?action=wbcreateclaim&format=json&snaktype=value&";
     let token = encodeURIComponent(rawToken);
     let tags = rawTags.map(encodeURIComponent).join("|");
@@ -158,8 +166,9 @@ function addRef(data, rawToken, graphId) {
 
 function processSocialMediaUrl(stringUrl, claims, entity, token, graphId) {
     let url = new URL(stringUrl);
-    let host = url.host;
+    let host = url.host.toLowerCase();
     let split_path = url.pathname.split("/");
+    split_path.shift(); // shift out the empty string
     if (host.endsWith("twitter.com")) {
         if (!(TWITTER_CLAIM in claims)) {
             let handle = split_path[split_path.length - 1];
@@ -227,6 +236,27 @@ function processSocialMediaUrl(stringUrl, claims, entity, token, graphId) {
             }
             return makeClaim(entity, IMDB_CLAIM, handle, [], token, graphId);
         }
+    } else if (host.endsWith("spotify.com") && split_path[0] == "artist") {
+        if (!(SPOTIFY_ARTIST_CLAIM in claims)) {
+            let handle = split_path[1];
+            return makeClaim(entity, SPOTIFY_ARTIST_CLAIM, handle, [], token, graphId);
+        }
+    } else if (host.endsWith("deezer.com") && split_path[0] == "artist") {
+        if (!(DEEZER_ARTIST_CLAIM in claims)) {
+            let handle = split_path[1];
+            return makeClaim(entity, DEEZER_ARTIST_CLAIM, handle, [], token, graphId);
+        }
+    } else if (host.endsWith("tunein.com") && split_path[0] == "artist") {
+        if (!(TUNE_IN_ARTIST_CLAIM in claims)) {
+            let handle = split_path[1];
+            return makeClaim(entity, TUNE_IN_ARTIST_CLAIM, handle, [], token, graphId);
+        }
+    } else if (host.endsWith("play.google.com") && split_path[0] == "music" &&
+               split_path[1] == "r" && split_path[2] == "m") {
+        if (!(PLAY_ARTIST_CLAIM in claims)) {
+            let handle = split_path[3];
+            return makeClaim(entity, PLAY_ARTIST_CLAIM, handle, [], token, graphId);
+        }
     }
     return Promise.resolve(null);
 }
@@ -279,7 +309,6 @@ chrome.runtime.onMessage.addListener(
             let markup = res[2];
 
             chrome.storage.local.get(entityId, function(pastResult) {
-                console.log(pastResult);
                 var update = true;
                 if (Object.entries(pastResult).length == 0) {
                     let claims = markup.entities[entityId].claims;
