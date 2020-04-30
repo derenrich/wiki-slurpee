@@ -62,6 +62,19 @@ function getArtistData(panel){
     }
 }
 
+function getStockData(panel) {
+    let stock = panel.querySelector("[data-attrid='kc:/business/issuer:stock quote']");
+    if (stock) {
+        let block = Array.from(stock.getElementsByClassName("kno-fv"))[0];
+        let ticker = block.children[0].text;
+        let exchange = block.children[1].innerText.slice(1,-1);
+        let stockData = {ticker, exchange}
+        return [stockData];
+    } else {
+        return [];
+    }
+}
+
 function getWikiLinkDirectly() {
     console.log("scraping panel");
     let panel = getKnowledgePanel();
@@ -94,6 +107,7 @@ function getInfo() {
 
         let filmLinks = getFilmData(panel);
         let artistLinks = getArtistData(panel);
+        let stockData = getStockData(panel);
         
         let officialSiteElement = panel.querySelector("[data-attrid='visit_official_site']");
         var officialSite = null;
@@ -119,7 +133,8 @@ function getInfo() {
         return {
             graphId,
             relatedUrls,
-            officialSite
+            officialSite,
+            stockData
         };
     }
 }

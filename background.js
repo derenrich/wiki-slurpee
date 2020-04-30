@@ -94,6 +94,18 @@ let PLAY_ARTIST_CLAIM = "P4198";
 let IMDB_CLAIM = "P345";
 let RETRIEVED_CLAIM = "P813";
 
+let STOCK_EXCHANGE_CLAIM = "P414";
+let TICKER_CLAIM = "P249";
+
+let EXCHANGE_TO_ENTITY = {
+    "NASDAQ" :  "Q82059",
+    "NYSE":  "Q13677",
+    "LON": "Q171240",
+    "NSE": "Q638740",
+    "TYO": "Q217475",
+    "OTCMKTS": "Q1930860"
+};
+
 function makeClaim(entity, property, value, rawTags, rawToken, graphId) {
     if (value.length == 0) { // don't set empty values
         return Promise.resolve(null);
@@ -115,6 +127,23 @@ function makeClaim(entity, property, value, rawTags, rawToken, graphId) {
             "accept":"application/json, text/javascript, */*; q=0.01"
         }
     }).then(function(data){return data.json();}).then(function(data){return addRef(data, rawToken, graphId);});
+}
+
+function addQualifier(claim, property, snak, rawToken) {
+    let base_url = "https://www.wikidata.org/w/api.php?action=wbsetqualifier&format=json&";
+    let token = encodeURIComponent(rawToken);
+    let summary = encodeURIComponent("scraped data from google");
+    let encodedSnak = encodeURIComponent(JSON.stringify(snak));
+    let bodyArgs = `token=${token}&summary=${summary}&snaktype=value`;
+    let args = `property=${property}&claim=${claim}&value=${encodedSnak}`;
+    return fetch(base_url + args, {
+        method: 'POST',
+        body: bodyArgs,
+        headers: {
+            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "accept":"application/json, text/javascript, */*; q=0.01"
+        }
+    });
 }
 
 
@@ -159,7 +188,7 @@ function addRef(data, rawToken, graphId) {
                 "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
                 "accept":"application/json, text/javascript, */*; q=0.01"
             }
-        });
+        }).then(function(data){return Promise.resolve(statementId);});
     }
     return Promise.resolve(null);
 }
@@ -292,11 +321,32 @@ function processWebsite(website, claims, entityId, token, graphId) {
     return Promise.resolve(null);
 }
 
+function processStockData(stockData, claims, entityId, token, graphId) {
+    if (stockData.length) {
+        if (!(STOCK_EXCHANGE_CLAIM in claims)) {
+            let stock = stockData[0];
+            let exchangeName = stock.exchange;
+            let ticker = stock.ticker;
+            let exchangeId = EXCHANGE_TO_ENTITY[exchangeName];
+            let valueSnak = {"entity-type":"item","id": exchangeId}
+            if (exchangeId) {
+                let res = makeClaim(entityId, STOCK_EXCHANGE_CLAIM, valueSnak, [], token, graphId);
+                return res.then(function(claim) {
+                    let snakVal = ticker;
+                    addQualifier(claim, TICKER_CLAIM, snakVal, token);
+                });
+            }
+        }
+    }
+    return Promise.resolve(null);
+}
+
 chrome.runtime.onMessage.addListener(
     function(request, sender, sendResponse) {
         let url = new URL(request.url);
         let graphId = request.graphId;
         let website = request.officialSite;
+        let stockData = request.stockData;
         let socialMediaLinks = request.relatedUrls;
         let getToken = getCSRF();
         let getEntity = getWikidataEntity(url);
@@ -318,6 +368,7 @@ chrome.runtime.onMessage.addListener(
                     });
                     promiseChain = promiseChain.then(function(){return processKB(graphId, claims, entityId, token);});
                     promiseChain = promiseChain.then(function(){return processWebsite(website, claims, entityId, token, graphId);});
+                    promiseChain = promiseChain.then(function(){return processStockData(stockData, claims, entityId, token, graphId);});
                     promiseChain = promiseChain.then(function(){
                         chrome.storage.local.set({[entityId]: 1});
                     });
