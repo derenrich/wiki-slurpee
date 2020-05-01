@@ -103,7 +103,12 @@ let EXCHANGE_TO_ENTITY = {
     "LON": "Q171240",
     "NSE": "Q638740",
     "TYO": "Q217475",
-    "OTCMKTS": "Q1930860"
+    "OTCMKTS": "Q1930860",
+    "HEL": "Q581755",
+    "STO": "Q1019992",
+    "TAL": "Q1433248",
+    "SHE": "Q517750",
+    "HKG": "Q496672"
 };
 
 function makeClaim(entity, property, value, rawTags, rawToken, graphId) {
