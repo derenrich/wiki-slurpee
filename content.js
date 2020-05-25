@@ -1,17 +1,22 @@
 console.log("booting content script...");
 
+let panelClassName = "kp-wholepage";
+
 function getKnowledgePanel() {
-    let panels = document.getElementsByClassName("knowledge-panel");
+    let panels = document.getElementsByClassName(panelClassName);
     if (panels.length > 0) { // sometimes there are multiple boxes
         return panels[0]; // just get the first one
     } else {
+        console.log("Failed to find the knowledge-panel")
         return null;
     }
 }
 
-function getKnowId(panel) {
-    let link = panel.getElementsByClassName("bia")[0];
-    let target = link.href;
+
+function getHeader() {
+    let panel = getKnowledgePanel();
+    let container = panel.querySelector("div#wp-tabs-container");
+    return container;
 }
 
 function getWikipediaLink() {
@@ -29,10 +34,19 @@ function getWikipediaLink() {
         }
     });
     let panel = getKnowledgePanel();
-    let header = panel.getElementsByClassName("kp-header")[0];
+    let header = getHeader();
     let center = document.createElement("center");
     center.innerText = "click on wikipedia link you want to use";
-    header.append(center);
+    header.prepend(center);
+}
+
+function getGameData(panel) {
+    let gameBox = panel.querySelector("[data-attrid='kc:/cvg/computer_videogame:reviews']");
+    if (gameBox) {
+        let gameLinks = gameBox.getElementsByTagName("a");
+        return Array.from(gameLinks).map(a => a.href).filter(href => href && !href.includes("facebook"));
+    }
+    return [];
 }
 
 function getFilmData(panel) {
@@ -106,6 +120,7 @@ function getInfo() {
         }
 
         let filmLinks = getFilmData(panel);
+        let gameLinks = getGameData(panel);
         let artistLinks = getArtistData(panel);
         let stockData = getStockData(panel);
         
@@ -116,8 +131,7 @@ function getInfo() {
         }        
         try {
             let footer = panel.parentElement.getElementsByClassName("kno-ftr")[0];
-            let claim = footer.lastElementChild;
-            let claimLink = new URL(claim.getElementsByTagName("a")[0].href);
+            let claimLink = new URL(footer.getElementsByTagName("a")[0].href);
             var graphId = claimLink.search.slice(5).split("&")[0];
             if (graphId.startsWith("/g/") || graphId.startsWith("/m/")) {
                 console.debug("found graph id of " + graphId);
@@ -129,7 +143,7 @@ function getInfo() {
         } catch (ex) {
             graphId = "";
         }
-        let relatedUrls = filmLinks.concat(socialMediaUrls).concat(artistLinks);
+        let relatedUrls = filmLinks.concat(socialMediaUrls).concat(artistLinks).concat(gameLinks);
         return {
             graphId,
             relatedUrls,
@@ -148,7 +162,7 @@ function postData(wikiUrl) {
 
 function handleResponse(response, sender, sendResponse) {
     let panel = getKnowledgePanel();
-    let header = panel.getElementsByClassName("kp-header")[0];
+    let header = getHeader();
     let center = document.createElement("center");
     if ("entityId" in response) {
         let link = document.createElement('a');
@@ -170,7 +184,7 @@ function handleResponse(response, sender, sendResponse) {
             center.append(document.createElement('br'));
         }
     }
-    header.append(center);
+    header.prepend(center);
 }
 
 chrome.runtime.onMessage.addListener(handleResponse);

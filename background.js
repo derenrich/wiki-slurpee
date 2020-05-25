@@ -60,7 +60,7 @@ chrome.runtime.onInstalled.addListener(function() {
       chrome.declarativeContent.onPageChanged.addRules([{
         conditions: [new chrome.declarativeContent.PageStateMatcher({
             pageUrl: {hostSuffix: 'google.com'},
-            css: ["div.knowledge-panel"]
+            css: ["div.kp-wholepage"]
         })
         ],
         actions: [new chrome.declarativeContent.ShowPageAction()]
@@ -91,6 +91,9 @@ let SPOTIFY_ARTIST_CLAIM = "P1902";
 let TUNE_IN_ARTIST_CLAIM = "P7192";
 let PLAY_ARTIST_CLAIM = "P4198";
 
+let PLAY_APP_ID_CLAIM = "P3418";
+let APP_STORE_ID_CLAIM = "P3861";
+
 let IMDB_CLAIM = "P345";
 let RETRIEVED_CLAIM = "P813";
 
@@ -108,7 +111,10 @@ let EXCHANGE_TO_ENTITY = {
     "STO": "Q1019992",
     "TAL": "Q1433248",
     "SHE": "Q517750",
-    "HKG": "Q496672"
+    "HKG": "Q496672",
+    "ELI": "Q2415561",
+    "TPE":"Q548621",
+    "BVMF":"Q796297"
 };
 
 function makeClaim(entity, property, value, rawTags, rawToken, graphId) {
@@ -200,6 +206,7 @@ function addRef(data, rawToken, graphId) {
 
 function processSocialMediaUrl(stringUrl, claims, entity, token, graphId) {
     let url = new URL(stringUrl);
+    let args = new URLSearchParams(url.search);
     let host = url.host.toLowerCase();
     let split_path = url.pathname.split("/");
     split_path.shift(); // shift out the empty string
@@ -290,6 +297,22 @@ function processSocialMediaUrl(stringUrl, claims, entity, token, graphId) {
         if (!(PLAY_ARTIST_CLAIM in claims)) {
             let handle = split_path[3];
             return makeClaim(entity, PLAY_ARTIST_CLAIM, handle, [], token, graphId);
+        }
+    } else if (host.endsWith("play.google.com") && split_path[0] == "store" &&
+               split_path[1] == "apps" && split_path[2] == "details") {
+        if (!(PLAY_APP_ID_CLAIM in claims)) {
+            let appId = args.get("id");
+            if (appId) {
+                return makeClaim(entity, PLAY_APP_ID_CLAIM, appId, [], token, graphId);
+            }
+        }
+    } else if (host.endsWith("apps.apple.com")) {
+        if (!(APP_STORE_ID_CLAIM in claims)) {
+            let appId = split_path[split_path.length - 1];
+            if (appId.startsWith("id")) {
+                let choppedAppId = appId.slice(2)
+                return makeClaim(entity, APP_STORE_ID_CLAIM, choppedAppId, [], token, graphId);
+            }
         }
     }
     return Promise.resolve(null);
