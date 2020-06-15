@@ -57,14 +57,21 @@ function getWikidataMarkup(entity) {
 
 chrome.runtime.onInstalled.addListener(function() {
     chrome.declarativeContent.onPageChanged.removeRules(undefined, function() {
-      chrome.declarativeContent.onPageChanged.addRules([{
+        chrome.declarativeContent.onPageChanged.addRules([{
         conditions: [new chrome.declarativeContent.PageStateMatcher({
             pageUrl: {hostSuffix: 'google.com'},
             css: ["div.kp-wholepage"]
         })
         ],
         actions: [new chrome.declarativeContent.ShowPageAction()]
-      }]);
+        },{
+        conditions: [new chrome.declarativeContent.PageStateMatcher({
+            pageUrl: {hostSuffix: 'google.com'},
+            css: ["div.knowledge-panel"]
+        })],
+        actions: [new chrome.declarativeContent.ShowPageAction()]
+        }
+     ]);
     });
 });
 

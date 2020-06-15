@@ -1,9 +1,18 @@
 console.log("booting content script...");
 
-let panelClassName = "kp-wholepage";
+let panelClassNames = ["kp-wholepage","knowledge-panel"];
 
 function getKnowledgePanel() {
-    let panels = document.getElementsByClassName(panelClassName);
+    function tryGetPanel(className) {
+        let panels = document.getElementsByClassName(className);
+        if (panels.length > 0) { // sometimes there are multiple boxes
+            return panels[0]; // just get the first one
+        } else {
+            return null;
+        }
+    }
+
+    let panels = panelClassNames.map(className => tryGetPanel(className)).filter(panel => panel != null);
     if (panels.length > 0) { // sometimes there are multiple boxes
         return panels[0]; // just get the first one
     } else {
@@ -16,7 +25,11 @@ function getKnowledgePanel() {
 function getHeader() {
     let panel = getKnowledgePanel();
     let container = panel.querySelector("div#wp-tabs-container");
-    return container;
+    if (container) {
+        return container
+    }
+    let container2 = panel.querySelector("div.kp-header");
+    return container2;
 }
 
 function getWikipediaLink() {
