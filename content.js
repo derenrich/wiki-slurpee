@@ -51,6 +51,23 @@ function getWikipediaLink() {
     let center = document.createElement("center");
     center.innerText = "click on wikipedia link you want to use";
     header.prepend(center);
+
+    let center2 = document.createElement("center");
+    let create = document.createElement("a");
+    create.innerText = "create!";
+    create.href= "#";
+    center2.prepend(create);
+    create.onclick = function() {
+        doCreate();
+    }
+    header.prepend(center2);
+   
+}
+function doCreate() {
+    let info = getInfo();
+    info["url"] = "create!";
+    console.log(info);
+    chrome.runtime.sendMessage(info);
 }
 
 function getGameData(panel) {
@@ -102,6 +119,24 @@ function getStockData(panel) {
     }
 }
 
+function getName(panel) {
+    let title = panel.querySelector("[data-attrid='title']");
+    if (title) {
+        return title.innerText;
+    } else {
+        return null;
+    }
+}
+
+function getDesc(panel) {
+    let subtitle = panel.querySelector("[data-attrid='subtitle']");
+    if (subtitle) {
+        return subtitle.innerText;
+    } else {
+        return null;
+    }
+}
+
 function getWikiLinkDirectly() {
     console.log("scraping panel");
     let panel = getKnowledgePanel();
@@ -136,7 +171,8 @@ function getInfo() {
         let gameLinks = getGameData(panel);
         let artistLinks = getArtistData(panel);
         let stockData = getStockData(panel);
-        
+        let name = getName(panel);
+        let desc = getDesc(panel);
         let officialSiteElement = panel.querySelector("[data-attrid='visit_official_site']");
         var officialSite = null;
         if (officialSiteElement != null) {
@@ -158,6 +194,8 @@ function getInfo() {
         }
         let relatedUrls = filmLinks.concat(socialMediaUrls).concat(artistLinks).concat(gameLinks);
         return {
+            name,
+            desc,
             graphId,
             relatedUrls,
             officialSite,

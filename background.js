@@ -124,8 +124,34 @@ let EXCHANGE_TO_ENTITY = {
     "BVMF":"Q796297"
 };
 
+async function makeItem(rawToken, name, desc) {
+    let rawData = {}
+    rawData.labels = {"en": { "language": "en", "value": name}};
+    rawData.descriptions = {"en": { "language": "en", "value": desc}};
+    let data = encodeURIComponent(JSON.stringify(rawData));
+    let token = encodeURIComponent(rawToken);
+    let args = `token=${token}&data=${data}&new=item&summary=create for import`;
+    console.log(args)
+    let res = await fetch("https://www.wikidata.org/w/api.php?action=wbeditentity&format=json&new=item", {
+      "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+      },
+      "body": args,
+      "method": "POST",
+      "mode": "cors",
+      "credentials": "include"
+    }).then(function(data){return data.json();});
+    if (res && res.success) {
+        return res.entity.id;
+    } else {
+        console.log("Failed to create item!");
+        return null;
+    }
+}
+
 function makeClaim(entity, property, value, rawTags, rawToken, graphId) {
     if (value.length == 0) { // don't set empty values
+        console.log("can't claim empty values");
         return Promise.resolve(null);
     }
     let base_url = "https://www.wikidata.org/w/api.php?action=wbcreateclaim&format=json&snaktype=value&";
@@ -219,7 +245,10 @@ function processSocialMediaUrl(stringUrl, claims, entity, token, graphId) {
     split_path.shift(); // shift out the empty string
     if (host.endsWith("twitter.com")) {
         if (!(TWITTER_CLAIM in claims)) {
-            let handle = split_path[split_path.length - 1];
+            var handle = split_path[split_path.length - 1];
+            if (handle == "") {
+                handle = split_path[split_path.length - 2];
+            }
             return makeClaim(entity, TWITTER_CLAIM, handle, [], token, graphId);
         }
     } else if (host.endsWith("instagram.com")) {
@@ -377,22 +406,34 @@ function processStockData(stockData, claims, entityId, token, graphId) {
 }
 
 chrome.runtime.onMessage.addListener(
-    function(request, sender, sendResponse) {
-        let url = new URL(request.url);
+    async function(request, sender, sendResponse) {
+        let getToken = getCSRF();
+        var getEntity = null
+        if (request.url == "create!") {
+            // first create the thing
+            let token = await getToken;
+            let name = request.name ? request.name : "";
+            let desc = request.desc ? request.desc : "";
+            let entityId = await makeItem(token, name, desc);
+            getEntity = Promise.resolve(entityId);
+        } else {
+            let url = new URL(request.url);
+            getEntity = getWikidataEntity(url);            
+        }
+        //getEntity = Promise.resolve("Q4115189");
         let graphId = request.graphId;
         let website = request.officialSite;
         let stockData = request.stockData;
         let socialMediaLinks = request.relatedUrls;
-        let getToken = getCSRF();
-        let getEntity = getWikidataEntity(url);
         let getMarkup = getEntity.then(function(entity){return getWikidataMarkup(entity);});
-
 
         Promise.all([getToken, getEntity, getMarkup]).then(function(res) {
             let token = res[0];
             let entityId = res[1];
             let markup = res[2];
-
+            if (!entityId || !token || !markup) {
+                return;
+            }
             chrome.storage.local.get(entityId, function(pastResult) {
                 var update = true;
                 if (Object.entries(pastResult).length == 0) {
