@@ -92,6 +92,9 @@ let LINKEDIN_CLAIM = "P6634"
 let FREEBASE_CLAIM = "P646";
 let PINTEREST_CLAIM = "P3836";
 let GOOGLE_KNOWLEDGE_CLAIM = "P2671";
+let GOODREADS_BOOK_CLAIM = 'P2969';
+let ROTTEN_TOM_CLAIM = 'P1258';
+let METACRIT_CLAIM = 'P1712';
 
 let DEEZER_ARTIST_CLAIM = "P2722";
 let SPOTIFY_ARTIST_CLAIM = "P1902";
@@ -349,6 +352,27 @@ function processSocialMediaUrl(stringUrl, claims, entity, token, graphId) {
                 let choppedAppId = appId.slice(2)
                 return makeClaim(entity, APP_STORE_ID_CLAIM, choppedAppId, [], token, graphId);
             }
+        }
+    } else if (host.endsWith("goodreads.com")) {
+        if (!(GOODREADS_BOOK_CLAIM in claims)) {
+            // take whatever is before a . or -
+            let bookId = split_path[split_path.length - 1].split(".")[0].split("-")[0];
+            if (bookId && url.pathname.includes("/book/")) {
+                return makeClaim(entity, GOODREADS_BOOK_CLAIM, bookId, [], token, graphId);
+            }
+        }
+    } else if (host.endsWith("rottentomatoes.com")) {
+        if (!(ROTTEN_TOM_CLAIM in claims)) {
+            let workId = split_path[split_path.length - 1];
+            let typeId = split_path[split_path.length - 2];
+            if (workId && typeId) {
+                return makeClaim(entity, ROTTEN_TOM_CLAIM, typeId + "/" + workId, [], token, graphId);
+            }
+        }
+    } else if (host.endsWith("metacritic.com")) {
+        if (!(METACRIT_CLAIM in claims)) {
+            // slice off leading slash
+            return makeClaim(entity, METACRIT_CLAIM, url.pathname.slice(1), [], token, graphId);
         }
     }
     return Promise.resolve(null);

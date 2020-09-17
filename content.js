@@ -79,6 +79,15 @@ function getGameData(panel) {
     return [];
 }
 
+function getBookData(panel) {
+    let gameBox = panel.querySelector("[data-attrid='kc:/book/book:reviews']");
+    if (gameBox) {
+        let gameLinks = gameBox.getElementsByTagName("a");
+        return Array.from(gameLinks).map(a => a.href).filter(href => href);
+    }
+    return [];
+}
+
 function getFilmData(panel) {
     let filmBox = panel.querySelector("[data-attrid='kc:/film/film:reviews']");
     if (filmBox) {
@@ -168,6 +177,7 @@ function getInfo() {
         }
 
         let filmLinks = getFilmData(panel);
+        let bookLinks = getBookData(panel);
         let gameLinks = getGameData(panel);
         let artistLinks = getArtistData(panel);
         let stockData = getStockData(panel);
@@ -192,7 +202,7 @@ function getInfo() {
         } catch (ex) {
             graphId = "";
         }
-        let relatedUrls = filmLinks.concat(socialMediaUrls).concat(artistLinks).concat(gameLinks);
+        let relatedUrls = filmLinks.concat(socialMediaUrls).concat(artistLinks).concat(gameLinks).concat(bookLinks);
         return {
             name,
             desc,
