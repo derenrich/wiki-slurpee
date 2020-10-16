@@ -95,6 +95,7 @@ let GOOGLE_KNOWLEDGE_CLAIM = "P2671";
 let GOODREADS_BOOK_CLAIM = 'P2969';
 let ROTTEN_TOM_CLAIM = 'P1258';
 let METACRIT_CLAIM = 'P1712';
+let GOOGLE_SCHOLAR_CLAIM = 'P1960';
 
 let DEEZER_ARTIST_CLAIM = "P2722";
 let SPOTIFY_ARTIST_CLAIM = "P1902";
@@ -373,6 +374,13 @@ function processSocialMediaUrl(stringUrl, claims, entity, token, graphId) {
         if (!(METACRIT_CLAIM in claims)) {
             // slice off leading slash
             return makeClaim(entity, METACRIT_CLAIM, url.pathname.slice(1), [], token, graphId);
+        }
+    } else if (host.endsWith("scholar.google.com")) {
+        if (!(GOOGLE_SCHOLAR_CLAIM in claims)) {
+            let userId = args.get("user");
+            if (userId) {
+                return makeClaim(entity, GOOGLE_SCHOLAR_CLAIM, userId, [], token, graphId);
+            }
         }
     }
     return Promise.resolve(null);
