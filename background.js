@@ -98,6 +98,7 @@ let METACRIT_CLAIM = 'P1712';
 let GOOGLE_SCHOLAR_CLAIM = 'P1960';
 
 let DEEZER_ARTIST_CLAIM = "P2722";
+let ITUNES_ARTIST_CLAIM = "P2850";
 let SPOTIFY_ARTIST_CLAIM = "P1902";
 let TUNE_IN_ARTIST_CLAIM = "P7192";
 let PLAY_ARTIST_CLAIM = "P4198";
@@ -125,7 +126,9 @@ let EXCHANGE_TO_ENTITY = {
     "HKG": "Q496672",
     "ELI": "Q2415561",
     "TPE":"Q548621",
-    "BVMF":"Q796297"
+    "BVMF":"Q796297",
+    "NZE": "Q627019",
+    "ASX": "Q732670"
 };
 
 async function makeItem(rawToken, name, desc) {
@@ -380,6 +383,15 @@ function processSocialMediaUrl(stringUrl, claims, entity, token, graphId) {
             let userId = args.get("user");
             if (userId) {
                 return makeClaim(entity, GOOGLE_SCHOLAR_CLAIM, userId, [], token, graphId);
+            }
+        }
+    } else if (host.endsWith("itunes.apple.com")) {
+        if (!(ITUNES_ARTIST_CLAIM in claims)) {
+            let artistId = split_path[split_path.length - 1];
+            let category = split_path[split_path.length - 3];
+            let region = split_path[0];
+            if (category == "artist" && region == "us") {
+                return makeClaim(entity, ITUNES_ARTIST_CLAIM, artistId, [], token, graphId);
             }
         }
     }
