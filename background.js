@@ -1,3 +1,24 @@
+async function fetcher(fetchFunc, key, callback) {
+    let timeKey = key + "$$time";
+    let oneHour = 3600*1000;
+    chrome.storage.local.get([key, timeKey], async function(items) {
+        if (items[key] && items[timeKey]) {
+            if (items[timeKey] > Date.now() - oneHour) {
+                callback(items[key]);
+                return;
+            }
+        }
+        let res = await fetchFunc();
+        let d = {};
+        d[timeKey] = Date.now();
+        d[key] = res;
+        chrome.storage.local.set(d);
+        callback(res);
+    });
+}
+
+
+
 function getCSRF() {
     return fetch("https://www.wikidata.org/w/api.php?action=query&meta=tokens&format=json")
         .catch(function(err) {
@@ -18,6 +39,45 @@ function getCSRF() {
             }
         );
 }
+
+function loadPatternsLive() {
+        let propQuery = `
+SELECT ?p ?regexValue (COALESCE(?replacement, "\\\\1") as ?replacementString) (COALESCE(?q = wd:Q55121297, false) as ?caseInsensitive)
+WHERE {
+  ?p p:P8966 ?regex.
+  ?regex ps:P8966 ?regexValue
+  OPTIONAL {
+     ?p wdt:P1552 ?q.
+     ?q wdt:P31 wd:Q55121384.
+  }
+ OPTIONAL {?regex pq:P8967 ?replacement.}
+}`;
+    const url = "https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(propQuery);
+    return fetch(url).then((x) => x.json()).then((res) => {
+        let regexCache = {};
+        for(let prop of res.results.bindings) {
+            let propUrl = prop.p.value;
+            let splitUrl = propUrl.split("/");
+            let propId = splitUrl[splitUrl.length - 1];
+            let regex = prop.regexValue.value;
+            let replacementValue = prop.replacementString.value;
+            let caseInsensitive = prop.caseInsensitive.value;
+            regexCache[regex] = {prop: propId, replacementValue: replacementValue, caseInsensitive: caseInsensitive};
+        }
+        return regexCache;
+    });
+}
+
+let bannedProps = {"P8176": 1}
+
+
+var matchers = null;
+function getPropertyMatchers() {
+    fetcher(loadPatternsLive, "PATTERNS", function(p) {
+        matchers = p;
+    });
+}
+getPropertyMatchers();
 
 function getSiteFromUrl(url) {
     let parsedUrl = new URL(url);
@@ -157,7 +217,7 @@ async function makeItem(rawToken, name, desc) {
 }
 
 function makeClaim(entity, property, value, rawTags, rawToken, graphId) {
-    if (value.length == 0) { // don't set empty values
+    if (value && value.length == 0) { // don't set empty values
         console.log("can't claim empty values");
         return Promise.resolve(null);
     }
@@ -373,12 +433,12 @@ function processSocialMediaUrl(stringUrl, claims, entity, token, graphId) {
                 return makeClaim(entity, ROTTEN_TOM_CLAIM, typeId + "/" + workId, [], token, graphId);
             }
         }
-    } else if (host.endsWith("metacritic.com")) {
+    } /*else if (host.endsWith("metacritic.com")) {
         if (!(METACRIT_CLAIM in claims)) {
             // slice off leading slash
             return makeClaim(entity, METACRIT_CLAIM, url.pathname.slice(1), [], token, graphId);
         }
-    } else if (host.endsWith("scholar.google.com")) {
+    } */else if (host.endsWith("scholar.google.com")) {
         if (!(GOOGLE_SCHOLAR_CLAIM in claims)) {
             let userId = args.get("user");
             if (userId) {
@@ -392,6 +452,28 @@ function processSocialMediaUrl(stringUrl, claims, entity, token, graphId) {
             let region = split_path[0];
             if (category == "artist" && region == "us") {
                 return makeClaim(entity, ITUNES_ARTIST_CLAIM, artistId, [], token, graphId);
+            }
+        }
+    } else {
+        // fallback to wikidata
+        for(let k of Object.keys(matchers)) {
+            let matchData = matchers[k];
+            let prop = matchData.prop;
+            if (prop in claims || (prop in bannedProps)) {
+                continue;
+            }
+            var mode = "";
+            if (matchData.caseInsensitive) {
+                mode = "i";
+            }
+            let regex = new RegExp(k, mode);
+            let match = regex.exec(url.href);
+            var key = matchData.replacementValue;
+            if (match && match.length > 0) {
+                for (var i = 1; i < match.length; i+=1) {
+                    key = key.replaceAll("\\" + i, match[i]);
+                }
+                return makeClaim(entity, prop, key, [], token, graphId);
             }
         }
     }
