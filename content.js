@@ -1,12 +1,18 @@
 console.log("booting content script...");
 
-let panelClassNames = ["kp-wholepage","knowledge-panel"];
+var panelClassNames = ["kp-wholepage","knowledge-panel"];
+var booted;
 
 function getKnowledgePanel() {
     function tryGetPanel(className) {
         let panels = document.getElementsByClassName(className);
         if (panels.length > 0) { // sometimes there are multiple boxes
-            return panels[0]; // just get the first one
+            let panel = panels[0]; // just get the first one
+            if(!panel.getElementsByTagName("wholepage-tab-history-helper").length) {
+                return panels[0];
+            } else {
+                return null;
+            }
         } else {
             return null;
         }
@@ -16,11 +22,24 @@ function getKnowledgePanel() {
     if (panels.length > 0) { // sometimes there are multiple boxes
         return panels[0]; // just get the first one
     } else {
-        console.log("Failed to find the knowledge-panel")
-        return null;
+        let backupPanel = getKnowledgePanelBackup();
+        if (backupPanel) {
+            return backupPanel;
+        } else {
+            console.log("Failed to find the knowledge-panel")
+            return null;
+        }
     }
 }
 
+function getKnowledgePanelBackup() {
+    let panel = document.querySelector("div[data-attrid=\"kc:/ugc:thumbs_up\"]");
+    if (panel) {
+        return panel.parentElement.parentElement.parentElement.parentElement;
+    } else {
+        return null;
+    }
+}
 
 function getHeader() {
     let panel = getKnowledgePanel();
@@ -29,7 +48,10 @@ function getHeader() {
         return container
     }
     let container2 = panel.querySelector("div.kp-header");
-    return container2;
+    if (container2) {
+        return container2;
+    }
+    return panel;
 }
 
 function getWikipediaLink() {
@@ -115,6 +137,19 @@ function getArtistData(panel){
     }
 }
 
+function getWatchData(panel) {
+    let watch = panel.querySelector("[data-attrid='kc:/tv/tv_program:media_actions_wholepage']") || panel.querySelector("[data-attrid='kc:/film/film:media_actions_wholepage']");
+    if (watch) {
+        let watchLinks = Array.from(watch.getElementsByTagName("a"))
+            .map(a => a.href)
+            .filter(href => href.length > 0)
+            .filter(href => !href.includes("youtube.com"));
+        return watchLinks;
+    } else {
+        return [];
+    }
+}
+
 function getStockData(panel) {
     let stock = panel.querySelector("[data-attrid='kc:/business/issuer:stock quote']");
     if (stock) {
@@ -180,6 +215,7 @@ function getInfo() {
         let bookLinks = getBookData(panel);
         let gameLinks = getGameData(panel);
         let artistLinks = getArtistData(panel);
+        let watchLinks = getWatchData(panel);
         let stockData = getStockData(panel);
         let name = getName(panel);
         let desc = getDesc(panel);
@@ -202,7 +238,7 @@ function getInfo() {
         } catch (ex) {
             graphId = "";
         }
-        let relatedUrls = filmLinks.concat(socialMediaUrls).concat(artistLinks).concat(gameLinks).concat(bookLinks);
+        let relatedUrls = filmLinks.concat(socialMediaUrls).concat(artistLinks).concat(gameLinks).concat(bookLinks).concat(watchLinks);
         return {
             name,
             desc,
@@ -245,12 +281,17 @@ function handleResponse(response, sender, sendResponse) {
             center.append(document.createElement('br'));
         }
     }
-    header.prepend(center);
+    if (header) {
+        header.prepend(center);
+    }
 }
 
-chrome.runtime.onMessage.addListener(handleResponse);
+if (!booted) {
+    chrome.runtime.onMessage.addListener(handleResponse);
+    booted = true;
+}
 
-let wikiLink = getWikiLinkDirectly();
+var wikiLink = getWikiLinkDirectly();
 if (wikiLink != null) {
     postData(wikiLink);
 }
